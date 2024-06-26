@@ -3,10 +3,11 @@ import { Route, Routes } from "react-router-dom";
 import Shop from "../pages/Shop";
 import Home from "../pages/Home";
 import CartPage from "../pages/CartPage";
-import AdminPage from "../pages/admin";
+import AdminPage from "../pages/Admin";
 import ProfilePage from "../pages/ProfilePage";
 import ProductDetails from "../pages/ProductDetails";
 import Header from "../components/Header";
+// import Example from "../components/Example"
 const Routers = () => {
   return (
     <div>
@@ -18,7 +19,9 @@ const Routers = () => {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/shop" element={<Shop />} />
-        <Route path="/product/:id" element={<ProductDetails />} />
+        <Route path="/product/:productId" element={<ProductDetails />} />
+        {/* <Route path="/example" element={<Example/>}/> */}
+
       </Routes>
     </div>
   );

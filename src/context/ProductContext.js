@@ -1,6 +1,5 @@
 import React, { createContext, useState, useEffect } from "react";
 import axios from "axios";
-import { v4 as uuidv4 } from "uuid"; 
 
 export const ProductContext = createContext();
 
@@ -11,6 +10,7 @@ const ProductProvider = ({ children }) => {
     categories: [],
     priceRange: [500, 5000],
     sortOrder: "",
+    searchTerm: "",
   });
 
   useEffect(() => {
@@ -23,7 +23,7 @@ const ProductProvider = ({ children }) => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/products');
+      const response = await axios.get("http://localhost:5000/products");
       setProducts(response.data);
       setFilteredProducts(response.data);
     } catch (error) {
@@ -32,7 +32,10 @@ const ProductProvider = ({ children }) => {
   };
 
   const handleFilterChange = (newFilters) => {
-    setFilters(newFilters);
+    setFilters((prevFilters) => ({
+      ...prevFilters,
+      ...newFilters,
+    }));
   };
 
   const applyFilters = () => {
@@ -58,13 +61,21 @@ const ProductProvider = ({ children }) => {
       filtered = filtered.sort((a, b) => b.price - a.price);
     }
 
+    if (filters.searchTerm) {
+      filtered = filtered.filter((product) =>
+        product.name.toLowerCase().includes(filters.searchTerm.toLowerCase())
+      );
+    }
+
     setFilteredProducts(filtered);
   };
 
   const addProduct = async (newProduct) => {
     try {
-      newProduct.id = uuidv4(); // Generate a new ID for the product
-      const response = await axios.post('http://localhost:5000/products', newProduct);
+      const response = await axios.post(
+        "http://localhost:5000/products",
+        newProduct
+      );
       const updatedProducts = [...products, response.data];
       setProducts(updatedProducts);
       setFilteredProducts(updatedProducts);
@@ -75,9 +86,12 @@ const ProductProvider = ({ children }) => {
 
   const editProduct = async (productId, updatedProduct) => {
     try {
-      const response = await axios.put(`http://localhost:5000/products/${productId}`, updatedProduct);
+      const response = await axios.put(
+        `http://localhost:5000/products/${productId}`,
+        updatedProduct
+      );
       const updatedProducts = products.map((product) =>
-        product.id === productId ? response.data : product
+        product._id === productId ? response.data : product
       );
       setProducts(updatedProducts);
       setFilteredProducts(updatedProducts);
@@ -90,7 +104,7 @@ const ProductProvider = ({ children }) => {
     try {
       await axios.delete(`http://localhost:5000/products/${productId}`);
       const updatedProducts = products.filter(
-        (product) => product.id !== productId
+        (product) => product._id !== productId
       );
       setProducts(updatedProducts);
       setFilteredProducts(updatedProducts);

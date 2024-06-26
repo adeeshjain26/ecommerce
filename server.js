@@ -1,32 +1,24 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const productsRouter = require('./routes/products');
+const cartRouter = require('./routes/cart');
+
 const app = express();
-const port = 5000;
 
-app.use(express.json());
+// Connect to MongoDB
+mongoose.connect('mongodb://localhost/e-cart', { useNewUrlParser: true, useUnifiedTopology: true });
+const db = mongoose.connection;
+db.on('error', (error) => console.error(error));
+db.once('open', () => console.log('Connected to Database'));
 
-app.get('/cart.json', (req, res) => {
-  fs.readFile(path.join(__dirname, 'public', 'cart.json'), 'utf-8', (err, data) => {
-    if (err) {
-      res.status(500).send("Failed to read cart data.");
-    } else {
-      res.send(JSON.parse(data));
-    }
-  });
-});
+app.use(cors());
+app.use(bodyParser.json({ limit: '50mb' })); // Increase the limit as needed
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
-app.post('/save-cart', (req, res) => {
-  const cart = req.body;
-  fs.writeFile(path.join(__dirname, 'public', 'cart.json'), JSON.stringify(cart, null, 2), (err) => {
-    if (err) {
-      res.status(500).send("Failed to save cart data.");
-    } else {
-      res.send("Cart data saved.");
-    }
-  });
-});
+app.use('/products', productsRouter);
+app.use('/cart', cartRouter);
 
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
-});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
