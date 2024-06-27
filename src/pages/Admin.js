@@ -1,4 +1,7 @@
 import React, { useState, useContext } from "react";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPlus } from '@fortawesome/free-solid-svg-icons';
+
 import { ProductContext } from "../context/ProductContext";
 import { useNavigate } from "react-router-dom";
 import ConfirmationDialog from "../components/dialogue/ConfirmationDialog";
@@ -12,13 +15,14 @@ const AdminPage = () => {
     name: "",
     category: "",
     price: 0,
-    image: "",
+    images: [],
     description: "",
     brand: "",
     colors: [],
     sizes: [],
-    details: "",
+    details: [],
   });
+  const [imageFiles, setImageFiles] = useState([]);
   const [dialog, setDialog] = useState({
     isOpen: false,
     action: null,
@@ -31,14 +35,7 @@ const AdminPage = () => {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, image: reader.result });
-      };
-      reader.readAsDataURL(file);
-    }
+    setImageFiles([...imageFiles, ...Array.from(e.target.files)]);
   };
 
   const handleColorsChange = (e) => {
@@ -63,9 +60,35 @@ const AdminPage = () => {
     });
   };
 
+  const handleDetailsChange = (e, index) => {
+    const { value } = e.target;
+    const newDetails = [...formData.details];
+    newDetails[index] = value;
+    setFormData({ ...formData, details: newDetails });
+  };
+
+  const handleAddDetail = () => {
+    setFormData({ ...formData, details: [...formData.details, ""] });
+  };
+
+  const handleRemoveDetail = (index) => {
+    const newDetails = formData.details.filter((_, i) => i !== index);
+    setFormData({ ...formData, details: newDetails });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setDialog({ isOpen: true, action: "submit", product: formData });
+    const formDataToSend = new FormData();
+    Object.keys(formData).forEach((key) => {
+      if (key === "images") {
+        imageFiles.forEach((file, index) => {
+          formDataToSend.append("images", file); // Ensure 'images' field is used
+        });
+      } else {
+        formDataToSend.append(key, JSON.stringify(formData[key]));
+      }
+    });
+    setDialog({ isOpen: true, action: "submit", product: formDataToSend });
   };
 
   const handleEdit = (product) => {
@@ -81,8 +104,8 @@ const AdminPage = () => {
     setDialog({ isOpen: false, action: null, product: null });
 
     if (action === "submit") {
-      if (product.id) {
-        await editProduct(product.id, product);
+      if (product.get("id")) {
+        await editProduct(product.get("id"), product);
       } else {
         await addProduct(product);
       }
@@ -91,13 +114,14 @@ const AdminPage = () => {
         name: "",
         category: "",
         price: 0,
-        image: "",
+        images: [],
         description: "",
         brand: "",
         colors: [],
         sizes: [],
-        details: "",
+        details: [],
       });
+      setImageFiles([]);
       navigate("/shop");
     } else if (action === "edit") {
       setFormData(product);
@@ -288,30 +312,60 @@ const AdminPage = () => {
               <label className="block text-lg font-medium leading-6 text-gray-900">
                 Details
               </label>
-              <div className="mt-2">
-                <textarea
-                  name="details"
-                  value={formData.details}
-                  onChange={handleChange}
-                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-lg"
-                  rows={4}
-                  placeholder="Enter Product Details"
-                />
+              <div className="mt-2 space-y-2">
+                {formData.details.map((detail, index) => (
+                  <div key={index} className="flex items-center">
+                    <textarea
+                      name="details"
+                      value={detail}
+                      onChange={(e) => handleDetailsChange(e, index)}
+                      className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-lg"
+                      rows={2}
+                      placeholder="Enter Product Detail"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveDetail(index)}
+                      className="ml-2 text-red-500 hover:text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={handleAddDetail}
+                >
+                  <p className="text-xl text-black flex justify-center items-center" >+</p> 
+
+                </button>
               </div>
             </div>
 
             <div className="col-span-full">
               <label className="block text-lg font-medium leading-6 text-gray-900">
-                Product Image
+                Product Images
               </label>
               <div className="mt-2">
                 <input
                   type="file"
-                  name="imageFile"
+                  name="imageFiles"
                   accept=".jpg, .jpeg, .png"
                   onChange={handleFileChange}
+                  multiple
                   className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md cursor-pointer bg-gray-50 focus:outline-none"
                 />
+              </div>
+              <div className="mt-2 space-y-2">
+                {imageFiles.map((file, index) => (
+                  <div key={index} className="flex items-center">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={`Product Image ${index + 1}`}
+                      className="w-20 h-20 object-cover"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
 

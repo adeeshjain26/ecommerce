@@ -1,5 +1,5 @@
 const express = require('express');
-const mongoose = require('mongoose');
+const { Pool } = require('pg');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const productsRouter = require('./routes/products');
@@ -7,14 +7,33 @@ const cartRouter = require('./routes/cart');
 
 const app = express();
 
-// Connect to MongoDB
-mongoose.connect('mongodb://localhost/e-cart', { useNewUrlParser: true, useUnifiedTopology: true });
-const db = mongoose.connection;
-db.on('error', (error) => console.error(error));
-db.once('open', () => console.log('Connected to Database'));
+// PostgreSQL connection setup
+const pool = new Pool({
+    user: 'ecart_user',
+    host: 'localhost',
+    database: 'e_cart',
+    password: 'new_password',
+    port: 5432,
+  });  
+
+pool.connect((err, client, release) => {
+  if (err) {
+    return console.error('Error acquiring client', err.stack);
+  }
+  console.log('Connected to PostgreSQL');
+  // Log the password for verification
+  console.log('PostgreSQL password:', pool.options.password);
+  release(); // Remember to release the client back to the pool when done
+});
 
 app.use(cors());
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+app.use((req, res, next) => {
+  req.pool = pool;
+  next();
+});
 
 app.use('/products', productsRouter);
 app.use('/cart', cartRouter);
