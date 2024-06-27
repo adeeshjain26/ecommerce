@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const Product = require('../models/Product');
 const multer = require('multer');
 
 const storage = multer.diskStorage({
@@ -9,121 +8,95 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     cb(null, Date.now() + '-' + file.originalname);
-  }
+  },
 });
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 } // Limit file size to 50MB
+  limits: { fileSize: 50 * 1024 * 1024 },
 });
-
 
 // Get all products
 router.get('/', async (req, res) => {
   try {
-    const products = await Product.find();
-    res.json(products);
+    const result = await req.pool.query('SELECT * FROM products');
+    console.log('Products retrieved:', result.rows);
+    res.json(result.rows);
   } catch (err) {
+    console.error('Error retrieving products:', err);
     res.status(500).json({ message: err.message });
   }
 });
 
-
-
-
-
 // Get a product by ID
-router.get('/:id', getProduct, (req, res) => {
-  res.json(res.product);
+router.get('/:id', async (req, res) => {
+  try {
+    const result = await req.pool.query('SELECT * FROM products WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Cannot find product' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error finding product:', err);
+    res.status(500).json({ message: err.message });
+  }
 });
 
 // Create a new product with image upload
 router.post('/', upload.array('images', 5), async (req, res) => {
-  const product = new Product({
-    name: req.body.name,
-    brand: req.body.brand,
-    price: req.body.price,
-    category: req.body.category,
-    colours: req.body.colours,
-    availableSizes: req.body.availableSizes,
-    productDetails: req.body.productDetails,
-    images: req.files.map(file => ({
-      filename: file.filename,
-      path: file.path,
-      mimetype: file.mimetype,
-    })),
-    description: req.body.description,
-  });
+  const { name, brand, price, category, colours, availableSizes, productDetails, description } = req.body;
+  const images = req.files.map((file) => ({
+    filename: file.filename,
+    path: file.path,
+    mimetype: file.mimetype,
+  }));
 
   try {
-    const newProduct = await product.save();
-    res.status(201).json(newProduct);
+    const result = await req.pool.query(
+      'INSERT INTO products (name, brand, price, category, colours, availableSizes, productDetails, images, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+      [name, brand, price, category, colours, availableSizes, productDetails, JSON.stringify(images), description]
+    );
+    console.log('New product created:', result.rows[0]);
+    res.status(201).json(result.rows[0]);
   } catch (err) {
+    console.error('Error creating product:', err);
     res.status(400).json({ message: err.message });
   }
 });
 
 // Update a product
-router.put('/:id', getProduct, async (req, res) => {
-  if (req.body.name != null) {
-    res.product.name = req.body.name;
-  }
-  if (req.body.brand != null) {
-    res.product.brand = req.body.brand;
-  }
-  if (req.body.price != null) {
-    res.product.price = req.body.price;
-  }
-  if (req.body.category != null) {
-    res.product.category = req.body.category;
-  }
-  if (req.body.colours != null) {
-    res.product.colours = req.body.colours;
-  }
-  if (req.body.availableSizes != null) {
-    res.product.availableSizes = req.body.availableSizes;
-  }
-  if (req.body.productDetails != null) {
-    res.product.productDetails = req.body.productDetails;
-  }
-  if (req.body.images != null) {
-    // Assuming you handle image updates similarly
-    res.product.images = req.body.images;
-  }
-  if (req.body.description != null) {
-    res.product.description = req.body.description;
-  }
+router.put('/:id', async (req, res) => {
+  const { name, brand, price, category, colours, availableSizes, productDetails, images, description } = req.body;
 
   try {
-    const updatedProduct = await res.product.save();
-    res.json(updatedProduct);
+    const result = await req.pool.query(
+      'UPDATE products SET name = $1, brand = $2, price = $3, category = $4, colours = $5, availableSizes = $6, productDetails = $7, images = $8, description = $9 WHERE id = $10 RETURNING *',
+      [name, brand, price, category, colours, availableSizes, productDetails, images, description, req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Cannot find product' });
+    }
+    console.log('Product updated:', result.rows[0]);
+    res.json(result.rows[0]);
   } catch (err) {
+    console.error('Error updating product:', err);
     res.status(400).json({ message: err.message });
   }
 });
 
 // Delete a product
-router.delete('/:id', getProduct, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    await res.product.remove();
+    const result = await req.pool.query('DELETE FROM products WHERE id = $1 RETURNING *', [req.params.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Cannot find product' });
+    }
+    console.log('Product deleted:', result.rows[0]);
     res.json({ message: 'Deleted Product' });
   } catch (err) {
+    console.error('Error deleting product:', err);
     res.status(500).json({ message: err.message });
   }
 });
-
-async function getProduct(req, res, next) {
-  let product;
-  try {
-    product = await Product.findById(req.params.id);
-    if (product == null) {
-      return res.status(404).json({ message: 'Cannot find product' });
-    }
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-  res.product = product;
-  next();
-}
 
 module.exports = router;

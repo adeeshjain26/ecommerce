@@ -71,7 +71,9 @@ const ProductProvider = ({ children }) => {
   };
 
   const addProduct = async (newProduct) => {
+    console.log("addProduct called");
     try {
+      console.log("trying to post");
       const response = await axios.post(
         "http://localhost:5000/products",
         newProduct
